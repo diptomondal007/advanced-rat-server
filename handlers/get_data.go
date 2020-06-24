@@ -35,7 +35,11 @@ func CommandHandler(w http.ResponseWriter, r *http.Request) {
 	key := keys[0]
 	log.Println(key)
 	for _, v := range DeviceList{
-		v.Conn.Emit("command", key)
+		if key == "record"{
+			v.Conn.Emit("command", key, 20)
+		}else {
+			v.Conn.Emit("command", key)
+		}
 	}
 	w.Write([]byte("command successful!"))
 	return
