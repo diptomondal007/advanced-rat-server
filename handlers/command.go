@@ -14,7 +14,7 @@ func CommandHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	key := keys[0]
 	log.Println(key)
-	for _, v := range DeviceList{
+	for _, v := range DevicesList.Devices{
 		switch key {
 		case "record":
 			v.Conn.Emit("command", key, 20)
@@ -35,6 +35,7 @@ func CommandHandler(w http.ResponseWriter, r *http.Request) {
 			v.Conn.Emit("command", key)
 		}
 	}
-	sendResponse(w, http.StatusOK, []byte("Command successful"))
+	res , _:= json.Marshal(SuccessMessage{Message:"command successful"})
+	sendResponse(w, http.StatusOK, res)
 	return
 }

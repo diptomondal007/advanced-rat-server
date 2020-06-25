@@ -7,16 +7,21 @@ import (
 )
 
 type Device struct {
-	ID                  string
-	Conn                socketio.Conn
-	DeviceDetails       string
-	DeviceRemoteAddress string
+	ID                  string `json:"id"`
+	EmailAddresses		[]string `json:"email_addresses"`
+	Conn                socketio.Conn `json:"conn"`
+	DeviceDetails       string `json:"device_details"`
+	DeviceRemoteAddress string `json:"device_remote_address"`
 }
 
-var DeviceList []Device
+type DeviceArray struct {
+	Devices []Device `json:"devices"`
+}
+
+var DevicesList DeviceArray
 
 func DeviceHandler(w http.ResponseWriter, r *http.Request) {
-	res, _ := json.Marshal(DeviceList)
+	res, _ := json.Marshal(DevicesList)
 	sendResponse(w, http.StatusOK, res)
 	return
 }
