@@ -17,7 +17,7 @@ func CommandHandler(w http.ResponseWriter, r *http.Request) {
 	for _, v := range DevicesList.Devices{
 		switch key {
 		case "record":
-			v.Conn.Emit("command", key, 20)
+			v.Conn.Emit("command", key, 50)
 		case "fm":
 			subCommand, ok := r.URL.Query()["subcommand"]
 			if !ok && len(subCommand) <0{
